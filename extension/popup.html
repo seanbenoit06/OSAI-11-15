@@ -53,14 +53,22 @@
                 <span class="label">Red Flags Found</span>
             </div>
             <div class="filter-bar">
-                <label for="minSeveritySelect">Minimum Severity</label>
-                <select id="minSeveritySelect">
-                    <option value="1">1 - Info</option>
-                    <option value="2">2 - Low</option>
-                    <option value="3" selected>3 - Medium</option>
-                    <option value="4">4 - High</option>
-                    <option value="5">5 - Critical</option>
-                </select>
+                <div class="severity-group" id="severityGroup">
+                    <span>Severity</span>
+                    <label><input type="checkbox" value="5"> 5</label>
+                    <label><input type="checkbox" value="4"> 4</label>
+                    <label><input type="checkbox" value="3"> 3</label>
+                    <label><input type="checkbox" value="2"> 2</label>
+                    <label><input type="checkbox" value="1"> 1</label>
+                </div>
+                <div class="sort-group">
+                    <label for="sortSelect">Sort by</label>
+                    <select id="sortSelect">
+                        <option value="severity-desc">Severity ↓</option>
+                        <option value="severity-asc">Severity ↑</option>
+                        <option value="category-asc">Category A→Z</option>
+                    </select>
+                </div>
             </div>
             <div class="preview-card" id="previewCard" style="display: none;">
                 <div class="preview-header">
