@@ -27,12 +27,12 @@ app.post("/analyze", async (req, res) => {
     const result = await analyzeContract(text);
     res.json(result);
   } catch (err) {
-    console.error("Analyzer error:", err);
+    console.error("Analyzer failed:", err);
     res.status(500).json({ error: "Failed to analyze contract" });
   }
 });
 
 app.listen(PORT, () => {
-  console.log(`Analyzer server running on http://localhost:${PORT}`);
+  console.log(`Analyzer server ready at http://localhost:${PORT}`);
 });
 

@@ -1,10 +1,9 @@
 import { sampleContract } from "./sampleContract.js";
 
-const DEFAULT_SEVERITY_SET = new Set();
 const API_URL = "http://localhost:3000/analyze";
 const PDF_FAIL_TEXT = "Failed to extract text from PDF.";
 
-let activeSeverities = new Set(DEFAULT_SEVERITY_SET);
+let activeSeverities = new Set();
 let lastAnalysis = null;
 
 const analyzeBtn = document.getElementById("analyzeBtn");
@@ -33,14 +32,18 @@ severityGroupEl.addEventListener("change", () => {
   rerenderWithCurrentFilters();
 });
 
-sortSelect.addEventListener("change", () => {
+sortSelect.addEventListener("change", () => rerenderWithCurrentFilters());
+
+window.setSeverityFilter = function setSeverityFilter(value) {
+  updateActiveSeverities(new Set([Number(value)]));
   rerenderWithCurrentFilters();
-});
+};
 
 async function handleAnalyze() {
   setLoading(true);
   try {
     const contractText = await getContractText();
+    console.log("[ContractShield] Text length:", contractText?.length || 0);
     const analysis = await fetchAnalysis(contractText);
     lastAnalysis = analysis;
     rerenderWithCurrentFilters();
@@ -52,18 +55,9 @@ async function handleAnalyze() {
   }
 }
 
-window.setSeverityFilter = function setSeverityFilter(value) {
-  updateActiveSeverities(new Set([Number(value)]));
-  rerenderWithCurrentFilters();
-};
-
 function setLoading(isLoading) {
   analyzeBtn.disabled = isLoading;
-  if (isLoading) {
-    analyzeBtn.textContent = "Analyzing…";
-  } else {
-    analyzeBtn.innerHTML = analyzeBtnDefaultContent;
-  }
+  analyzeBtn.innerHTML = isLoading ? "Analyzing…" : analyzeBtnDefaultContent;
 }
 
 async function fetchAnalysis(text) {
@@ -81,6 +75,15 @@ async function fetchAnalysis(text) {
 }
 
 function applyFilters(analysis) {
+  if (!analysis) {
+    return {
+      flagged: {},
+      susScore: null,
+      preview: null,
+      totalCount: 0
+    };
+  }
+
   if (!activeSeverities.size) {
     return {
       flagged: {},
@@ -131,11 +134,9 @@ function getTopIssue(flags) {
 
 function renderResults({ flagged, totalCount, preview, susScore }) {
   flagCountEl.textContent = totalCount;
-  if (typeof susScore === "number") {
-    susScoreEl.textContent = `Sus Score: ${susScore.toFixed(1)}%`;
-  } else {
-    susScoreEl.textContent = "Sus Score: --%";
-  }
+  susScoreEl.textContent =
+    typeof susScore === "number" ? `Sus Score: ${susScore.toFixed(1)}%` : "Sus Score: --%";
+
   resultsListEl.innerHTML = "";
 
   if (!totalCount) {
@@ -210,15 +211,27 @@ function rerenderWithCurrentFilters() {
 
 async function getContractText() {
   const tab = await getActiveTab();
+  console.log("[ContractShield] Active tab:", tab?.url);
   if (tab && isPdfTab(tab)) {
     try {
+      console.log("[ContractShield] Detected PDF tab.");
       const text = await extractPdfText(tab.url);
+      console.log("[ContractShield] Extracted PDF chars:", text?.length || 0);
       return text?.trim() ? text : PDF_FAIL_TEXT;
     } catch (err) {
       console.error("PDF extraction failed:", err);
       return PDF_FAIL_TEXT;
     }
   }
+
+  if (tab?.id) {
+    const pageText = await getPageText(tab.id);
+    console.log("[ContractShield] Page text chars:", pageText?.length || 0);
+    if (pageText?.trim()) {
+      return pageText.trim();
+    }
+  }
+
   return sampleContract;
 }
 
@@ -232,29 +245,45 @@ function getActiveTab() {
 
 function isPdfTab(tab) {
   if (!tab) return false;
-  const url = tab.url || "";
-  const title = tab.title || "";
+  const url = (tab.url || "").toLowerCase();
+  const title = (tab.title || "").toLowerCase();
   return (
-    url.toLowerCase().includes(".pdf") ||
-    title.toLowerCase().endsWith(".pdf")
+    url.includes(".pdf") ||
+    title.endsWith(".pdf") ||
+    (url.startsWith("chrome-extension://") &&
+      (url.includes("pdfurl=") || url.includes("file=")))
   );
+}
+
+function getPageText(tabId) {
+  return new Promise((resolve) => {
+    chrome.tabs.sendMessage(tabId, { type: "GET_WEBPAGE_TEXT" }, (response) => {
+      if (chrome.runtime.lastError) {
+        console.warn(chrome.runtime.lastError.message);
+        resolve("");
+        return;
+      }
+      resolve(response?.text || "");
+    });
+  });
 }
 
 async function extractPdfText(pdfUrl) {
   if (!pdfUrl) throw new Error("Missing PDF URL");
-  const pdfjsLib = await import(
-    "https://cdn.jsdelivr.net/npm/pdfjs-dist@4.0.379/build/pdf.min.mjs"
+  const resolvedUrl = resolvePdfUrl(pdfUrl);
+  console.log("[ContractShield] Fetching PDF:", resolvedUrl);
+
+  const pdfjsLib = await import(chrome.runtime.getURL("vendor/pdfjs/pdf.mjs"));
+  pdfjsLib.GlobalWorkerOptions.workerSrc = chrome.runtime.getURL(
+    "vendor/pdfjs/pdf.worker.mjs"
   );
-  pdfjsLib.GlobalWorkerOptions.workerSrc =
-    "https://cdn.jsdelivr.net/npm/pdfjs-dist@4.0.379/build/pdf.worker.min.mjs";
 
-  const response = await fetch(pdfUrl, { credentials: "include" });
-  if (!response.ok) {
-    throw new Error(`Unable to fetch PDF (${response.status})`);
+  const arrayBuffer = await requestPdfArrayBuffer(resolvedUrl);
+  const pdfData = ensureUint8Array(arrayBuffer);
+  if (!pdfData || !pdfData.length) {
+    throw new Error("Empty PDF data");
   }
-
-  const arrayBuffer = await response.arrayBuffer();
-  const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+  const pdf = await pdfjsLib.getDocument({ data: pdfData }).promise;
   let text = "";
 
   for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
@@ -269,20 +298,71 @@ async function extractPdfText(pdfUrl) {
   return text;
 }
 
+function requestPdfArrayBuffer(pdfUrl) {
+  return new Promise((resolve, reject) => {
+    chrome.runtime.sendMessage(
+      { type: "FETCH_PDF_ARRAY_BUFFER", url: pdfUrl },
+      (response) => {
+        if (chrome.runtime.lastError) {
+          console.warn("[ContractShield] Runtime error:", chrome.runtime.lastError.message);
+          return reject(chrome.runtime.lastError);
+        }
+        if (!response?.success || !response.buffer) {
+          console.warn("[ContractShield] Background fetch error:", response?.error);
+          return reject(new Error(response?.error || "Unknown fetch error"));
+        }
+        resolve(response.buffer);
+      }
+    );
+  });
+}
+
+function resolvePdfUrl(url) {
+  try {
+    const parsed = new URL(url);
+    if (parsed.protocol === "chrome-extension:") {
+      if (parsed.searchParams.has("pdfurl")) {
+        return decodeURIComponent(parsed.searchParams.get("pdfurl"));
+      }
+      if (parsed.searchParams.has("file")) {
+        return decodeURIComponent(parsed.searchParams.get("file"));
+      }
+    }
+    return url;
+  } catch {
+    return url;
+  }
+}
+
+function ensureUint8Array(bufferLike) {
+  if (bufferLike instanceof ArrayBuffer) {
+    return new Uint8Array(bufferLike);
+  }
+  if (Array.isArray(bufferLike)) {
+    return new Uint8Array(bufferLike);
+  }
+  if (bufferLike?.buffer && bufferLike.buffer instanceof ArrayBuffer) {
+    return new Uint8Array(bufferLike.buffer);
+  }
+  return null;
+}
+
 function sortIssues(flags) {
   const sortMode = sortSelect.value;
   const sorted = {};
+  const categories = Object.entries(flags).sort(([a], [b]) =>
+    a.localeCompare(b)
+  );
 
-  const categoryEntries = Object.entries(flags);
-  categoryEntries.sort(([a], [b]) => a.localeCompare(b));
-
-  for (const [category, issues] of categoryEntries) {
+  for (const [category, issues] of categories) {
     const issuesCopy = [...issues];
 
     if (sortMode === "severity-asc") {
       issuesCopy.sort((a, b) => Number(a.severity) - Number(b.severity));
     } else if (sortMode === "category-asc") {
-      issuesCopy.sort((a, b) => (a.example || "").localeCompare(b.example || ""));
+      issuesCopy.sort((a, b) =>
+        (a.example || "").localeCompare(b.example || "")
+      );
     } else {
       issuesCopy.sort((a, b) => Number(b.severity) - Number(a.severity));
     }
@@ -310,9 +390,9 @@ function createResultItem(category, issue) {
   reason.textContent = issue.reason;
 
   const badge = document.createElement("span");
-  const severityLevel = severityLabel(issue.severity);
-  badge.className = `severity-badge ${severityLevel.toLowerCase()}`;
-  badge.textContent = `${severityLevel} • ${issue.severity}`;
+  const level = severityLabel(issue.severity);
+  badge.className = `severity-badge ${level.toLowerCase()}`;
+  badge.textContent = `${level} • ${issue.severity}`;
 
   container.appendChild(title);
   container.appendChild(example);
