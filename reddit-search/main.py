@@ -2,9 +2,10 @@ from fastapi import FastAPI, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 import logging
 from contextlib import asynccontextmanager
+from typing import List
 
 from config import get_settings
-from models.schemas import AnalyzeRequest, AnalyzeResponse, ErrorResponse
+from models.schemas import AnalyzeRequest, AnalyzeResponse, ErrorResponse, RedditSource
 from services.reddit_service import RedditService
 from services.openai_service import OpenAIService
 
@@ -151,6 +152,14 @@ async def analyze_company(request: AnalyzeRequest):
         logger.info("Analyzing reviews with AI...")
         analysis_result = openai_service.analyze_reviews(request.company_name, corpus)
         
+        # Validate and enhance the analysis result
+        if not analysis_result or not analysis_result.summary:
+            logger.warning("OpenAI returned empty analysis, generating fallback")
+            analysis_result = generate_fallback_analysis(request.company_name, sources)
+        elif is_generic_response(analysis_result.summary):
+            logger.warning("OpenAI returned generic response, enhancing with fallback data")
+            analysis_result = enhance_analysis_with_sources(analysis_result, request.company_name, sources)
+        
         # Add source information to the response
         analysis_result.sources = sources
         
@@ -166,6 +175,70 @@ async def analyze_company(request: AnalyzeRequest):
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"An error occurred while analyzing the company: {str(e)}"
         )
+
+
+def is_generic_response(summary: str) -> bool:
+    """Check if the summary is a generic 'unable to provide' type response."""
+    if not summary:
+        return True
+    
+    generic_phrases = [
+        "unable to provide",
+        "cannot provide",
+        "no information available",
+        "insufficient data",
+        "not enough information",
+        "i don't have",
+        "i cannot",
+        "as an ai"
+    ]
+    
+    summary_lower = summary.lower()
+    return any(phrase in summary_lower for phrase in generic_phrases)
+
+
+def generate_fallback_analysis(company_name: str, sources: List[RedditSource]) -> AnalyzeResponse:
+    """Generate a basic analysis from Reddit sources when OpenAI fails."""
+    num_sources = len(sources)
+    
+    summary = (
+        f"Found {num_sources} Reddit discussion(s) about {company_name}. "
+        f"The AI analysis service encountered an issue, but you can review the source posts below "
+        f"to form your own opinion about this company."
+    )
+    
+    return AnalyzeResponse(
+        overall_sentiment="unclear",
+        risk_level="unknown",
+        summary=summary,
+        red_flags=["AI analysis unavailable - review sources manually"],
+        positive_notes=[],
+        sample_experiences=[],
+        sources=[]
+    )
+
+
+def enhance_analysis_with_sources(
+    analysis: AnalyzeResponse, 
+    company_name: str, 
+    sources: List[RedditSource]
+) -> AnalyzeResponse:
+    """Enhance a generic AI response with actual source information."""
+    num_sources = len(sources)
+    
+    # Create a better summary if the original is generic
+    if is_generic_response(analysis.summary):
+        analysis.summary = (
+            f"Found {num_sources} Reddit post(s) discussing {company_name}. "
+            f"While detailed analysis is limited, you can review the community discussions "
+            f"and posts linked below to learn about tenant experiences with this company."
+        )
+    
+    # Add a note about sources if there are any but analysis is thin
+    if not analysis.red_flags and not analysis.positive_notes:
+        analysis.red_flags = [f"Limited analysis available - found {num_sources} discussion(s) to review"]
+    
+    return analysis
 
 
 if __name__ == "__main__":

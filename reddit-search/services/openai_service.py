@@ -76,7 +76,13 @@ class OpenAIService:
             # Additional validation: Check if response seems fabricated
             self._validate_response_integrity(analysis_response, corpus)
             
+            # Check for generic "unable to provide" responses
+            if self._is_generic_ai_response(analysis_response):
+                logger.warning("OpenAI returned generic 'unable to provide' response")
+                # Don't raise error, let main.py handle enhancement with sources
+            
             logger.info(f"Analysis complete: sentiment={analysis_response.overall_sentiment}, risk={analysis_response.risk_level}")
+            logger.debug(f"Summary preview: {analysis_response.summary[:100] if analysis_response.summary else 'None'}")
             return analysis_response
             
         except json.JSONDecodeError as e:
@@ -183,6 +189,37 @@ Reddit reviews:
                 response.risk_level = "unknown"
         
         logger.debug("Response integrity validation passed")
+    
+    def _is_generic_ai_response(self, response: AnalyzeResponse) -> bool:
+        """
+        Check if the AI returned a generic 'unable to provide' type response.
+        
+        Args:
+            response: The AnalyzeResponse to check
+            
+        Returns:
+            True if response seems generic/unhelpful
+        """
+        if not response.summary:
+            return True
+        
+        generic_phrases = [
+            "unable to provide",
+            "cannot provide",
+            "insufficient",
+            "i don't have",
+            "i cannot",
+            "as an ai language model"
+        ]
+        
+        summary_lower = response.summary.lower()
+        has_generic_phrase = any(phrase in summary_lower for phrase in generic_phrases)
+        
+        # If it has generic phrase AND no actual data, it's generic
+        if has_generic_phrase and not response.red_flags and not response.positive_notes:
+            return True
+        
+        return False
     
     def _create_fallback_response(self, sentiment: str = "unclear") -> AnalyzeResponse:
         """

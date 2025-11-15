@@ -22,6 +22,7 @@ Instructions:
 - Keep explanations concise (1-2 sentences).
 - Use severity 5 for very risky, 1 for minor, 0 if no issues.
 - Be concise, professional, and consistent.
+- IMPORTANT: Also extract the company/landlord/property management name from the contract and include it in your JSON response as "company_name": "<name>". If no clear company name is found, use "company_name": null.
 `;
 
 function extractTextFromContent(content) {
@@ -72,18 +73,27 @@ export async function analyzeChunk(userText) {
       assistantMessage = assistantMessage.slice(firstBrace, lastBrace + 1);
     }
 
-    let flagged;
+    let parsedResponse;
     try {
-      flagged = JSON.parse(assistantMessage);
+      parsedResponse = JSON.parse(assistantMessage);
     } catch (err) {
       console.error("Error parsing JSON from GPT:", err);
       console.log("Raw GPT output:", assistantMessage);
-      flagged = null;
+      parsedResponse = null;
     }
 
-    return { flagged };
+    // Extract company name and flags
+    const companyName = parsedResponse?.company_name || null;
+    const flagged = parsedResponse ? { ...parsedResponse } : null;
+    
+    // Remove company_name from flagged object to keep it clean
+    if (flagged && "company_name" in flagged) {
+      delete flagged.company_name;
+    }
+
+    return { flagged, companyName };
   } catch (err) {
     console.error(err);
-    return { flagged: null };
+    return { flagged: null, companyName: null };
   }
 }

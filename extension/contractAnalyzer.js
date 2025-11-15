@@ -40,9 +40,18 @@ export async function analyzeContract(contractText) {
     })
   );
 
+  // Extract company name from first valid analysis
+  let companyName = null;
+  for (const analysis of chunkAnalyses) {
+    if (analysis?.companyName) {
+      companyName = analysis.companyName;
+      break;
+    }
+  }
+
   const mergedFlags = mergeAnalyses(chunkAnalyses.filter(Boolean));
   const susScore = computeSusScore(mergedFlags);
-  return { flagged: mergedFlags, susScore };
+  return { flagged: mergedFlags, susScore, companyName };
 }
 
 function mergeAnalyses(analyses) {

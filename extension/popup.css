@@ -116,6 +116,8 @@ body {
     margin-bottom: 24px;
     padding-bottom: 16px;
     border-bottom: 1px solid #E0E0E0;
+    flex-wrap: wrap;
+    gap: 8px;
 }
 
 .results-header h2 {
@@ -124,12 +126,47 @@ body {
     color: #212121;
 }
 
+.cached-indicator {
+    font-size: 12px;
+    font-weight: 600;
+    color: #2196F3;
+    background: #E3F2FD;
+    padding: 4px 10px;
+    border-radius: 12px;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
 .sus-score {
     font-size: 13px;
     font-weight: 600;
     color: #E53935;
     margin-left: auto;
     margin-right: 12px;
+}
+
+.rescan-btn {
+    padding: 6px 12px;
+    background: #2196F3;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.rescan-btn:hover {
+    background: #1976D2;
+}
+
+.rescan-btn:active {
+    background: #0D47A1;
 }
 
 .close-results {
@@ -413,4 +450,299 @@ body {
 
 .results-section::-webkit-scrollbar-thumb:hover {
     background: #9E9E9E;
+}
+
+/* Tab Navigation */
+.tab-navigation {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 20px;
+    border-bottom: 2px solid #E0E0E0;
+}
+
+.tab-btn {
+    flex: 1;
+    padding: 12px 16px;
+    background: transparent;
+    border: none;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -2px;
+    font-size: 14px;
+    font-weight: 600;
+    color: #757575;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.tab-btn:hover {
+    color: #212121;
+    background: #F5F5F5;
+}
+
+.tab-btn.active {
+    color: #E53935;
+    border-bottom-color: #E53935;
+}
+
+/* Tab Content */
+.tab-content {
+    display: none;
+}
+
+.tab-content.active {
+    display: block;
+}
+
+/* Company Section */
+.company-section {
+    margin-bottom: 20px;
+    padding: 16px;
+    background: #F5F5F5;
+    border-radius: 6px;
+}
+
+.company-detected {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.company-label {
+    font-size: 13px;
+    font-weight: 600;
+    color: #616161;
+}
+
+.company-name {
+    font-size: 14px;
+    font-weight: 600;
+    color: #E53935;
+}
+
+.company-manual {
+    text-align: center;
+}
+
+.manual-search-prompt {
+    font-size: 13px;
+    color: #616161;
+    margin-bottom: 12px;
+}
+
+.manual-search-input {
+    display: flex;
+    gap: 8px;
+}
+
+.manual-search-input input {
+    flex: 1;
+    padding: 10px 12px;
+    border: 1px solid #E0E0E0;
+    border-radius: 4px;
+    font-size: 14px;
+    color: #212121;
+}
+
+.manual-search-input input:focus {
+    outline: none;
+    border-color: #E53935;
+}
+
+.manual-search-input button {
+    padding: 10px 20px;
+    background: #E53935;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s ease;
+}
+
+.manual-search-input button:hover {
+    background: #C62828;
+}
+
+/* Reddit Loading State */
+.reddit-loading {
+    text-align: center;
+    padding: 60px 20px;
+}
+
+.loading-spinner {
+    width: 40px;
+    height: 40px;
+    border: 3px solid #E0E0E0;
+    border-top: 3px solid #E53935;
+    border-radius: 50%;
+    margin: 0 auto 16px;
+    animation: spin 0.8s linear infinite;
+}
+
+.reddit-loading p {
+    font-size: 14px;
+    color: #757575;
+}
+
+/* Reddit Error State */
+.reddit-error {
+    text-align: center;
+    padding: 40px 20px;
+}
+
+.error-icon {
+    font-size: 48px;
+    margin-bottom: 16px;
+    opacity: 0.5;
+}
+
+.error-message {
+    font-size: 14px;
+    color: #616161;
+    line-height: 1.5;
+}
+
+/* Reddit Results */
+.reddit-results {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.reddit-badges {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.sentiment-badge,
+.risk-badge {
+    padding: 8px 16px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: capitalize;
+}
+
+/* Sentiment Badge Colors */
+.sentiment-badge.sentiment-positive {
+    background: #E8F5E9;
+    color: #2E7D32;
+}
+
+.sentiment-badge.sentiment-negative {
+    background: #FFEBEE;
+    color: #C62828;
+}
+
+.sentiment-badge.sentiment-mixed {
+    background: #FFF3E0;
+    color: #E65100;
+}
+
+.sentiment-badge.sentiment-unclear {
+    background: #F5F5F5;
+    color: #757575;
+}
+
+/* Risk Badge Colors */
+.risk-badge.risk-low {
+    background: #E8F5E9;
+    color: #2E7D32;
+}
+
+.risk-badge.risk-medium {
+    background: #FFF3E0;
+    color: #E65100;
+}
+
+.risk-badge.risk-high {
+    background: #FFEBEE;
+    color: #C62828;
+}
+
+.risk-badge.risk-unknown {
+    background: #F5F5F5;
+    color: #757575;
+}
+
+/* Reddit Sections */
+.reddit-summary h3,
+.reddit-red-flags h3,
+.reddit-positive-notes h3,
+.reddit-experiences h3,
+.reddit-sources h3 {
+    font-size: 14px;
+    font-weight: 600;
+    color: #212121;
+    margin-bottom: 12px;
+}
+
+.reddit-summary p {
+    font-size: 13px;
+    color: #424242;
+    line-height: 1.6;
+}
+
+.reddit-red-flags ul,
+.reddit-positive-notes ul,
+.reddit-experiences ul {
+    list-style: none;
+    padding: 0;
+}
+
+.reddit-red-flags li,
+.reddit-positive-notes li,
+.reddit-experiences li {
+    padding: 10px 12px;
+    margin-bottom: 8px;
+    background: #FAFAFA;
+    border-left: 3px solid #E0E0E0;
+    border-radius: 4px;
+    font-size: 13px;
+    color: #424242;
+    line-height: 1.5;
+}
+
+.reddit-red-flags li {
+    border-left-color: #E53935;
+    background: #FFEBEE;
+}
+
+.reddit-positive-notes li {
+    border-left-color: #4CAF50;
+    background: #E8F5E9;
+}
+
+.reddit-experiences li {
+    border-left-color: #2196F3;
+    background: #E3F2FD;
+}
+
+/* Reddit Sources */
+.reddit-source {
+    padding: 12px;
+    margin-bottom: 8px;
+    background: #F5F5F5;
+    border-radius: 4px;
+    border: 1px solid #E0E0E0;
+}
+
+.reddit-source a {
+    display: block;
+    font-size: 13px;
+    font-weight: 500;
+    color: #1976D2;
+    text-decoration: none;
+    margin-bottom: 4px;
+}
+
+.reddit-source a:hover {
+    text-decoration: underline;
+}
+
+.source-meta {
+    font-size: 11px;
+    color: #757575;
 }

@@ -3,8 +3,9 @@
   "name": "Lease Red-Flag Checker",
   "version": "1.0",
   "description": "Highlights risky or unusual clauses in leases/contracts.",
-  "permissions": ["activeTab", "scripting"],
+  "permissions": ["activeTab", "scripting", "storage"],
   "host_permissions": ["<all_urls>"],
+  "options_page": "options.html",
   "action": {
     "default_popup": "popup.html"
   },

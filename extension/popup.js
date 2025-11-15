@@ -1,10 +1,15 @@
 import { sampleContract } from "./sampleContract.js";
+import { searchCompanyReviews, getSentimentClass, getRiskLevelClass } from "./redditService.js";
 
 const API_URL = "http://localhost:3000/analyze";
 const PDF_FAIL_TEXT = "Failed to extract text from PDF.";
 
 let activeSeverities = new Set();
 let lastAnalysis = null;
+let lastRedditAnalysis = null;
+let detectedCompanyName = null;
+let currentDocumentFingerprint = null;
+let isUsingCachedResults = false;
 
 const analyzeBtn = document.getElementById("analyzeBtn");
 const resultsSection = document.getElementById("resultsSection");
@@ -20,6 +25,17 @@ const susScoreEl = document.getElementById("susScore");
 const severityGroupEl = document.getElementById("severityGroup");
 const sortSelect = document.getElementById("sortSelect");
 
+// Reddit tab elements
+const companyDetectedEl = document.getElementById("companyDetected");
+const detectedCompanyNameEl = document.getElementById("detectedCompanyName");
+const companyManualEl = document.getElementById("companyManual");
+const manualCompanyInput = document.getElementById("manualCompanyInput");
+const manualSearchBtn = document.getElementById("manualSearchBtn");
+const redditLoadingEl = document.getElementById("redditLoading");
+const redditErrorEl = document.getElementById("redditError");
+const redditErrorMessageEl = document.getElementById("redditErrorMessage");
+const redditResultsEl = document.getElementById("redditResults");
+
 const analyzeBtnDefaultContent = analyzeBtn.innerHTML;
 
 analyzeBtn.addEventListener("click", handleAnalyze);
@@ -34,24 +50,195 @@ severityGroupEl.addEventListener("change", () => {
 
 sortSelect.addEventListener("change", () => rerenderWithCurrentFilters());
 
+// Tab switching
+document.querySelectorAll(".tab-btn").forEach((btn) => {
+  btn.addEventListener("click", () => {
+    const targetTab = btn.getAttribute("data-tab");
+    switchTab(targetTab);
+  });
+});
+
+// Manual company search
+manualSearchBtn.addEventListener("click", handleManualSearch);
+
 window.setSeverityFilter = function setSeverityFilter(value) {
   updateActiveSeverities(new Set([Number(value)]));
   rerenderWithCurrentFilters();
 };
 
-async function handleAnalyze() {
-  setLoading(true);
+// Document fingerprinting and caching utilities
+async function getDocumentFingerprint() {
+  const tab = await getActiveTab();
+  const text = await getContractText();
+  
+  // Create a simple hash of the content
+  const hash = await simpleHash(text);
+  const url = tab?.url || "unknown";
+  
+  return `doc_${url}_${hash}`;
+}
+
+async function simpleHash(str) {
+  // Simple hash function for content identification
+  let hash = 0;
+  if (!str || str.length === 0) return hash.toString();
+  
+  for (let i = 0; i < str.length; i++) {
+    const char = str.charCodeAt(i);
+    hash = ((hash << 5) - hash) + char;
+    hash = hash & hash; // Convert to 32bit integer
+  }
+  
+  return Math.abs(hash).toString(36);
+}
+
+async function getCachedAnalysis(fingerprint) {
   try {
+    const result = await chrome.storage.local.get([fingerprint]);
+    return result[fingerprint] || null;
+  } catch (error) {
+    console.error("Error getting cached analysis:", error);
+    return null;
+  }
+}
+
+async function setCachedAnalysis(fingerprint, data) {
+  try {
+    // Store with timestamp
+    const cacheData = {
+      ...data,
+      cachedAt: Date.now()
+    };
+    await chrome.storage.local.set({ [fingerprint]: cacheData });
+    console.log("[ContractShield] Cached results for:", fingerprint);
+  } catch (error) {
+    console.error("Error setting cached analysis:", error);
+  }
+}
+
+async function clearCache() {
+  try {
+    await chrome.storage.local.clear();
+    console.log("[ContractShield] Cache cleared");
+  } catch (error) {
+    console.error("Error clearing cache:", error);
+  }
+}
+
+async function handleAnalyze(forceRescan = false) {
+  setLoading(true);
+  isUsingCachedResults = false;
+  
+  try {
+    // Generate document fingerprint
+    currentDocumentFingerprint = await getDocumentFingerprint();
+    console.log("[ContractShield] Document fingerprint:", currentDocumentFingerprint);
+    
+    // Check cache if not forcing rescan
+    if (!forceRescan) {
+      const cached = await getCachedAnalysis(currentDocumentFingerprint);
+      if (cached) {
+        console.log("[ContractShield] Using cached results");
+        isUsingCachedResults = true;
+        
+        // Restore cached data
+        lastAnalysis = cached.contractAnalysis;
+        lastRedditAnalysis = cached.redditAnalysis;
+        detectedCompanyName = cached.companyName;
+        
+        // Render from cache
+        if (lastAnalysis) {
+          rerenderWithCurrentFilters();
+        }
+        if (lastRedditAnalysis) {
+          renderRedditResults();
+        }
+        
+        // Show cached indicator
+        showCachedIndicator();
+        setLoading(false);
+        return;
+      }
+    }
+    
     const contractText = await getContractText();
     console.log("[ContractShield] Text length:", contractText?.length || 0);
-    const analysis = await fetchAnalysis(contractText);
-    lastAnalysis = analysis;
-    rerenderWithCurrentFilters();
+    
+    // Run both analyses in parallel
+    const [contractAnalysis, redditAnalysis] = await Promise.allSettled([
+      fetchAnalysis(contractText),
+      fetchRedditAnalysis(contractText)
+    ]);
+
+    // Handle contract analysis
+    if (contractAnalysis.status === "fulfilled") {
+      lastAnalysis = contractAnalysis.value;
+      rerenderWithCurrentFilters();
+    } else {
+      console.error("Contract analysis failed:", contractAnalysis.reason);
+      alert(contractAnalysis.reason?.message || "Unable to analyze contract. Ensure the local server is running.");
+    }
+
+    // Handle Reddit analysis
+    if (redditAnalysis.status === "fulfilled") {
+      lastRedditAnalysis = redditAnalysis.value;
+      detectedCompanyName = redditAnalysis.value.companyName;
+      renderRedditResults();
+    } else {
+      console.error("Reddit analysis failed:", redditAnalysis.reason);
+      showRedditError(redditAnalysis.reason?.message || "Unable to fetch Reddit reviews.");
+    }
+    
+    // Cache the results
+    await setCachedAnalysis(currentDocumentFingerprint, {
+      contractAnalysis: lastAnalysis,
+      redditAnalysis: lastRedditAnalysis,
+      companyName: detectedCompanyName
+    });
+
   } catch (err) {
     console.error(err);
-    alert(err?.message || "Unable to analyze contract. Ensure the local server is running.");
+    alert(err?.message || "An unexpected error occurred.");
   } finally {
     setLoading(false);
+  }
+}
+
+async function fetchRedditAnalysis(contractText) {
+  // First get the contract analysis to extract company name
+  const analysis = await fetchAnalysis(contractText);
+  const companyName = analysis.companyName;
+
+  if (!companyName) {
+    return { companyName: null, analysis: null };
+  }
+
+  try {
+    const redditData = await searchCompanyReviews(companyName);
+    return { companyName, analysis: redditData };
+  } catch (error) {
+    console.error("Reddit search failed:", error);
+    return { companyName, analysis: null, error };
+  }
+}
+
+async function handleManualSearch() {
+  const companyName = manualCompanyInput.value.trim();
+  if (!companyName) {
+    alert("Please enter a company name.");
+    return;
+  }
+
+  detectedCompanyName = companyName;
+  showRedditLoading();
+
+  try {
+    const redditData = await searchCompanyReviews(companyName);
+    lastRedditAnalysis = { companyName, analysis: redditData };
+    renderRedditResults();
+  } catch (error) {
+    console.error("Manual Reddit search failed:", error);
+    showRedditError(error?.message || "Unable to fetch Reddit reviews.");
   }
 }
 
@@ -417,3 +604,197 @@ function severityLabel(severity) {
   if (severity >= 3) return "Medium";
   return "Low";
 }
+
+// Tab switching functionality
+function switchTab(tabName) {
+  // Update tab buttons
+  document.querySelectorAll(".tab-btn").forEach((btn) => {
+    if (btn.getAttribute("data-tab") === tabName) {
+      btn.classList.add("active");
+    } else {
+      btn.classList.remove("active");
+    }
+  });
+
+  // Update tab content
+  document.querySelectorAll(".tab-content").forEach((content) => {
+    content.classList.remove("active");
+  });
+
+  if (tabName === "contract") {
+    document.getElementById("contractTab").classList.add("active");
+  } else if (tabName === "reddit") {
+    document.getElementById("redditTab").classList.add("active");
+  }
+}
+
+// Reddit results rendering functions
+function renderRedditResults() {
+  hideRedditStates();
+
+  if (!lastRedditAnalysis) {
+    showRedditError("No Reddit analysis available.");
+    return;
+  }
+
+  const { companyName, analysis } = lastRedditAnalysis;
+
+  // Show company name
+  if (companyName) {
+    detectedCompanyNameEl.textContent = companyName;
+    companyDetectedEl.style.display = "block";
+    companyManualEl.style.display = "none";
+  } else {
+    companyDetectedEl.style.display = "none";
+    companyManualEl.style.display = "block";
+  }
+
+  // If no analysis, stop here
+  if (!analysis) {
+    showRedditError("Unable to fetch Reddit reviews. Please try again or use manual search.");
+    return;
+  }
+
+  // Show results
+  redditResultsEl.style.display = "block";
+
+  // Render sentiment and risk badges
+  const sentimentBadge = document.getElementById("sentimentBadge");
+  const riskBadge = document.getElementById("riskBadge");
+  
+  sentimentBadge.textContent = `Sentiment: ${analysis.overall_sentiment}`;
+  sentimentBadge.className = `sentiment-badge ${getSentimentClass(analysis.overall_sentiment)}`;
+  
+  riskBadge.textContent = `Risk: ${analysis.risk_level}`;
+  riskBadge.className = `risk-badge ${getRiskLevelClass(analysis.risk_level)}`;
+
+  // Render summary
+  document.getElementById("redditSummary").textContent = analysis.summary;
+
+  // Render red flags
+  if (analysis.red_flags && analysis.red_flags.length > 0) {
+    const redFlagsList = document.getElementById("redditRedFlagsList");
+    redFlagsList.innerHTML = "";
+    analysis.red_flags.forEach((flag) => {
+      const li = document.createElement("li");
+      li.textContent = flag;
+      redFlagsList.appendChild(li);
+    });
+    document.getElementById("redditRedFlagsSection").style.display = "block";
+  } else {
+    document.getElementById("redditRedFlagsSection").style.display = "none";
+  }
+
+  // Render positive notes
+  if (analysis.positive_notes && analysis.positive_notes.length > 0) {
+    const positiveList = document.getElementById("redditPositiveList");
+    positiveList.innerHTML = "";
+    analysis.positive_notes.forEach((note) => {
+      const li = document.createElement("li");
+      li.textContent = note;
+      positiveList.appendChild(li);
+    });
+    document.getElementById("redditPositiveSection").style.display = "block";
+  } else {
+    document.getElementById("redditPositiveSection").style.display = "none";
+  }
+
+  // Render experiences
+  if (analysis.sample_experiences && analysis.sample_experiences.length > 0) {
+    const experiencesList = document.getElementById("redditExperiencesList");
+    experiencesList.innerHTML = "";
+    analysis.sample_experiences.forEach((exp) => {
+      const li = document.createElement("li");
+      li.textContent = exp;
+      experiencesList.appendChild(li);
+    });
+    document.getElementById("redditExperiencesSection").style.display = "block";
+  } else {
+    document.getElementById("redditExperiencesSection").style.display = "none";
+  }
+
+  // Render sources
+  if (analysis.sources && analysis.sources.length > 0) {
+    const sourcesList = document.getElementById("redditSourcesList");
+    sourcesList.innerHTML = "";
+    analysis.sources.forEach((source) => {
+      const sourceDiv = document.createElement("div");
+      sourceDiv.className = "reddit-source";
+      
+      const link = document.createElement("a");
+      link.href = source.url;
+      link.target = "_blank";
+      link.textContent = source.title;
+      
+      const meta = document.createElement("div");
+      meta.className = "source-meta";
+      meta.textContent = `r/${source.subreddit} • ${source.score} points`;
+      
+      sourceDiv.appendChild(link);
+      sourceDiv.appendChild(meta);
+      sourcesList.appendChild(sourceDiv);
+    });
+    document.getElementById("redditSourcesSection").style.display = "block";
+  } else {
+    document.getElementById("redditSourcesSection").style.display = "none";
+  }
+}
+
+function showRedditLoading() {
+  hideRedditStates();
+  redditLoadingEl.style.display = "block";
+}
+
+function showRedditError(message) {
+  hideRedditStates();
+  redditErrorMessageEl.textContent = message;
+  redditErrorEl.style.display = "block";
+  
+  // Show manual search option
+  companyDetectedEl.style.display = "none";
+  companyManualEl.style.display = "block";
+}
+
+function hideRedditStates() {
+  redditLoadingEl.style.display = "none";
+  redditErrorEl.style.display = "none";
+  redditResultsEl.style.display = "none";
+}
+
+function showCachedIndicator() {
+  // Show cached indicator in the results header
+  const cachedIndicator = document.getElementById("cachedIndicator");
+  const rescanBtn = document.getElementById("rescanBtn");
+  
+  if (cachedIndicator) {
+    cachedIndicator.style.display = "inline-block";
+  }
+  if (rescanBtn) {
+    rescanBtn.style.display = "inline-block";
+  }
+}
+
+function hideCachedIndicator() {
+  const cachedIndicator = document.getElementById("cachedIndicator");
+  const rescanBtn = document.getElementById("rescanBtn");
+  
+  if (cachedIndicator) {
+    cachedIndicator.style.display = "none";
+  }
+  if (rescanBtn) {
+    rescanBtn.style.display = "none";
+  }
+}
+
+async function handleRescan() {
+  hideCachedIndicator();
+  await handleAnalyze(true);
+}
+
+// Add rescan button event listener when DOM is ready
+document.addEventListener("DOMContentLoaded", () => {
+  const rescanBtn = document.getElementById("rescanBtn");
+  if (rescanBtn) {
+    rescanBtn.addEventListener("click", handleRescan);
+  }
+});

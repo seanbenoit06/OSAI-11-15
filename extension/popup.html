@@ -45,14 +45,24 @@
         <div class="results-section" id="resultsSection" style="display: none;">
             <div class="results-header">
                 <h2>Analysis Complete</h2>
+                <span class="cached-indicator" id="cachedIndicator" style="display: none;">📋 Cached</span>
                 <div class="sus-score" id="susScore">Sus Score: --%</div>
+                <button class="rescan-btn" id="rescanBtn" style="display: none;">🔄 Rescan</button>
                 <span class="close-results" id="closeResults">×</span>
             </div>
-            <div class="red-flags-count">
-                <span class="count" id="flagCount">0</span>
-                <span class="label">Red Flags Found</span>
+            
+            <!-- Tab Navigation -->
+            <div class="tab-navigation">
+                <button class="tab-btn active" data-tab="contract">Contract Analysis</button>
+                <button class="tab-btn" data-tab="reddit">Reddit Reviews</button>
             </div>
-            <div class="filter-bar">
+            <!-- Contract Analysis Tab Content -->
+            <div class="tab-content active" id="contractTab">
+                <div class="red-flags-count">
+                    <span class="count" id="flagCount">0</span>
+                    <span class="label">Red Flags Found</span>
+                </div>
+                <div class="filter-bar">
                 <div class="severity-group" id="severityGroup">
                     <span>Severity</span>
                     <label><input type="checkbox" value="5"> 5</label>
@@ -79,7 +89,71 @@
                 <p class="preview-example" id="previewExample"></p>
                 <p class="preview-reason" id="previewReason"></p>
             </div>
-            <div class="results-list" id="resultsList">
+                <div class="results-list" id="resultsList">
+                </div>
+            </div>
+
+            <!-- Reddit Reviews Tab Content -->
+            <div class="tab-content" id="redditTab">
+                <!-- Company Name Display/Input -->
+                <div class="company-section">
+                    <div class="company-detected" id="companyDetected" style="display: none;">
+                        <span class="company-label">Company:</span>
+                        <span class="company-name" id="detectedCompanyName"></span>
+                    </div>
+                    <div class="company-manual" id="companyManual" style="display: none;">
+                        <p class="manual-search-prompt">No company detected. Enter name to search:</p>
+                        <div class="manual-search-input">
+                            <input type="text" id="manualCompanyInput" placeholder="Enter company name">
+                            <button id="manualSearchBtn">Search</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Reddit Analysis Loading State -->
+                <div class="reddit-loading" id="redditLoading" style="display: none;">
+                    <div class="loading-spinner"></div>
+                    <p>Searching Reddit reviews...</p>
+                </div>
+
+                <!-- Reddit Analysis Error State -->
+                <div class="reddit-error" id="redditError" style="display: none;">
+                    <div class="error-icon">⚠️</div>
+                    <p class="error-message" id="redditErrorMessage"></p>
+                </div>
+
+                <!-- Reddit Analysis Results -->
+                <div class="reddit-results" id="redditResults" style="display: none;">
+                    <div class="reddit-badges">
+                        <span class="sentiment-badge" id="sentimentBadge"></span>
+                        <span class="risk-badge" id="riskBadge"></span>
+                    </div>
+
+                    <div class="reddit-summary">
+                        <h3>Summary</h3>
+                        <p id="redditSummary"></p>
+                    </div>
+
+                    <div class="reddit-red-flags" id="redditRedFlagsSection" style="display: none;">
+                        <h3>Red Flags</h3>
+                        <ul id="redditRedFlagsList"></ul>
+                    </div>
+
+                    <div class="reddit-positive-notes" id="redditPositiveSection" style="display: none;">
+                        <h3>Positive Notes</h3>
+                        <ul id="redditPositiveList"></ul>
+                    </div>
+
+                    <div class="reddit-experiences" id="redditExperiencesSection" style="display: none;">
+                        <h3>Sample Experiences</h3>
+                        <ul id="redditExperiencesList"></ul>
+                    </div>
+
+                    <div class="reddit-sources" id="redditSourcesSection" style="display: none;">
+                        <h3>Sources</h3>
+                        <div id="redditSourcesList"></div>
+                    </div>
+                </div>
             </div>
         </div>
 
