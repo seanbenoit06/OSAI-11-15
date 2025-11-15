@@ -1,0 +1,56 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+*.egg-info/
+.eggs/
+dist/
+build/
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Git
+.git/
+.gitignore
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+*.log
+
+# Documentation (optional - include if you want docs in container)
+*.md
+!README.md
+
+# Misc
+.mypy_cache/
+.ruff_cache/
+TEST_RESULTS.md
+ANTI_HALLUCINATION_TESTS.md
+PROJECT_SUMMARY.md
+ARCHITECTURE.md
+API_EXAMPLES.md
+test_api.py
+start_api.bat
+start_api.sh
+
