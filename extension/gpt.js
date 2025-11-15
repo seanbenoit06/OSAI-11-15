@@ -17,11 +17,19 @@ You are a contract analyzer that identifies potential red flags in contracts. Lo
 
 Instructions:
 - Respond only with valid JSON, no extra text.
+- Extract the landlord/property management company name from the contract and include it in a "companyName" field at the root level. If not found, set to null.
 - Each category is a key mapping to a list of issues:
   { "example": "<text snippet>", "severity": <1-5>, "reason": "<short explanation why it's a red flag>" }.
 - Keep explanations concise (1-2 sentences).
 - Use severity 5 for very risky, 1 for minor, 0 if no issues.
 - Be concise, professional, and consistent.
+
+Example response format:
+{
+  "companyName": "ABC Property Management",
+  "Vague Terms": [...],
+  "Financial Issues": [...]
+}
 `;
 
 function extractTextFromContent(content) {

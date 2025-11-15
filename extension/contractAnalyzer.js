@@ -40,9 +40,20 @@ export async function analyzeContract(contractText) {
     })
   );
 
-  const mergedFlags = mergeAnalyses(chunkAnalyses.filter(Boolean));
+  const validAnalyses = chunkAnalyses.filter(Boolean);
+
+  // Extract company name from first chunk that has it
+  let companyName = null;
+  for (const analysis of validAnalyses) {
+    if (analysis.flagged?.companyName) {
+      companyName = analysis.flagged.companyName;
+      break;
+    }
+  }
+
+  const mergedFlags = mergeAnalyses(validAnalyses);
   const susScore = computeSusScore(mergedFlags);
-  return { flagged: mergedFlags, susScore };
+  return { flagged: mergedFlags, susScore, companyName };
 }
 
 function mergeAnalyses(analyses) {
@@ -50,6 +61,9 @@ function mergeAnalyses(analyses) {
 
   for (const analysis of analyses) {
     for (const [category, issues] of Object.entries(analysis.flagged || {})) {
+      // Skip companyName field, it's not a category
+      if (category === "companyName") continue;
+
       if (!mergedFlags[category]) mergedFlags[category] = [];
       mergedFlags[category].push(...issues);
     }

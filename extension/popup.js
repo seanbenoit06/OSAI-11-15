@@ -209,6 +209,96 @@ function rerenderWithCurrentFilters() {
   if (!lastAnalysis) return;
   const filtered = applyFilters(lastAnalysis);
   renderResults(filtered);
+
+  // Display Reddit reviews if available
+  if (lastAnalysis?.redditReviews && lastAnalysis?.companyName) {
+    displayRedditReviews(lastAnalysis.redditReviews, lastAnalysis.companyName);
+  }
+}
+
+function displayRedditReviews(redditData, companyName) {
+  const redditSection = document.getElementById("redditSection");
+  const companyNameEl = document.getElementById("companyName");
+  const redditSentimentEl = document.getElementById("redditSentiment");
+  const redditSummaryEl = document.getElementById("redditSummary");
+  const redFlagsListEl = document.getElementById("redFlagsList");
+  const positiveNotesListEl = document.getElementById("positiveNotesList");
+  const sampleExperiencesListEl = document.getElementById("sampleExperiencesList");
+  const redditSourcesEl = document.getElementById("redditSources");
+
+  if (!redditData || redditData.error) {
+    redditSection.style.display = "none";
+    return;
+  }
+
+  redditSection.style.display = "block";
+  companyNameEl.textContent = companyName;
+
+  // Sentiment badge
+  const sentimentMap = {
+    positive: { emoji: "🟢", label: "Positive", color: "#4CAF50" },
+    mixed: { emoji: "🟡", label: "Mixed", color: "#FF9800" },
+    negative: { emoji: "🔴", label: "Negative", color: "#F44336" },
+    unclear: { emoji: "⚪", label: "Unclear", color: "#9E9E9E" }
+  };
+
+  const sentiment = sentimentMap[redditData.overall_sentiment] || sentimentMap.unclear;
+  redditSentimentEl.innerHTML = `
+    <span class="sentiment-badge" style="background-color: ${sentiment.color}">
+      ${sentiment.emoji} ${sentiment.label}
+    </span>
+    <span class="risk-badge">Risk Level: ${redditData.risk_level?.toUpperCase() || 'UNKNOWN'}</span>
+  `;
+
+  // Summary
+  redditSummaryEl.innerHTML = `<p class="summary-text">${redditData.summary || 'No summary available'}</p>`;
+
+  // Red flags
+  if (redditData.red_flags?.length > 0) {
+    redFlagsListEl.innerHTML = redditData.red_flags
+      .map(flag => `<li>${flag}</li>`)
+      .join('');
+    document.getElementById('redFlagsToggle').textContent =
+      `Red Flags from Tenants (${redditData.red_flags.length})`;
+  } else {
+    redFlagsListEl.innerHTML = '<li class="empty">No red flags reported</li>';
+  }
+
+  // Positive notes
+  if (redditData.positive_notes?.length > 0) {
+    positiveNotesListEl.innerHTML = redditData.positive_notes
+      .map(note => `<li>${note}</li>`)
+      .join('');
+    document.getElementById('positiveNotesToggle').textContent =
+      `Positive Experiences (${redditData.positive_notes.length})`;
+  } else {
+    positiveNotesListEl.innerHTML = '<li class="empty">No positive notes reported</li>';
+  }
+
+  // Sample experiences
+  if (redditData.sample_experiences?.length > 0) {
+    sampleExperiencesListEl.innerHTML = redditData.sample_experiences
+      .map(exp => `<li>${exp}</li>`)
+      .join('');
+  } else {
+    sampleExperiencesListEl.innerHTML = '<li class="empty">No experiences found</li>';
+  }
+
+  // Sources
+  if (redditData.sources?.length > 0) {
+    redditSourcesEl.innerHTML = `
+      <p class="sources-label">Based on ${redditData.sources.length} Reddit posts:</p>
+      <ul class="sources-list">
+        ${redditData.sources.slice(0, 5).map(source => `
+          <li>
+            <a href="${source.url}" target="_blank" rel="noopener">
+              ${source.title} (r/${source.subreddit})
+            </a>
+          </li>
+        `).join('')}
+      </ul>
+    `;
+  }
 }
 
 async function getContractText() {
