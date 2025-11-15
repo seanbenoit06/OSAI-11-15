@@ -1,0 +1,19 @@
+{
+  "manifest_version": 3,
+  "name": "Lease Red-Flag Checker",
+  "version": "1.0",
+  "description": "Highlights risky or unusual clauses in leases/contracts.",
+  "permissions": ["activeTab", "scripting"],
+  "host_permissions": ["<all_urls>"],
+  "action": {
+    "default_popup": "popup.html"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content.js"],
+      "match_about_blank": true,
+      "all_frames": true
+    }
+  ]
+}
