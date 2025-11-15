@@ -161,7 +161,9 @@ function renderPreview(preview) {
 
   previewCardEl.style.display = "block";
   previewCategoryEl.textContent = preview.category;
-  previewExampleEl.textContent = preview.issue.example || "No example provided.";
+  previewExampleEl.textContent = preview.issue.example
+    ? `"${preview.issue.example}"`
+    : "No example provided.";
   previewReasonEl.textContent = preview.issue.reason || "";
   previewSeverityEl.textContent = `Severity ${preview.issue.severity}`;
 }
@@ -383,7 +385,9 @@ function createResultItem(category, issue) {
 
   const example = document.createElement("p");
   example.className = "result-description";
-  example.textContent = `Example: ${issue.example}`;
+  example.textContent = issue.example
+    ? `Example: "${issue.example}"`
+    : "Example: (not provided)";
 
   const reason = document.createElement("p");
   reason.className = "result-description";
