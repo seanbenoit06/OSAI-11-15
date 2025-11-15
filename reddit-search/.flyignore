@@ -1,0 +1,54 @@
+# Fly.io ignore file - similar to .dockerignore
+# Files/directories to exclude from deployment
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+*.egg-info/
+.eggs/
+dist/
+build/
+
+# Environment
+.env
+.env.*
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Git
+.git/
+.gitignore
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+*.log
+
+# Documentation (keep only essential)
+TEST_RESULTS.md
+ANTI_HALLUCINATION_TESTS.md
+QUICKSTART.md
+
+# Test files
+test_api.py
+start_api.bat
+start_api.sh
+
+# Fly-specific (will be regenerated)
+.fly/
+
