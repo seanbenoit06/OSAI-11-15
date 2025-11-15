@@ -45,11 +45,31 @@
         <div class="results-section" id="resultsSection" style="display: none;">
             <div class="results-header">
                 <h2>Analysis Complete</h2>
+                <div class="sus-score" id="susScore">Sus Score: --%</div>
                 <span class="close-results" id="closeResults">×</span>
             </div>
             <div class="red-flags-count">
                 <span class="count" id="flagCount">0</span>
                 <span class="label">Red Flags Found</span>
+            </div>
+            <div class="filter-bar">
+                <label for="minSeveritySelect">Minimum Severity</label>
+                <select id="minSeveritySelect">
+                    <option value="1">1 - Info</option>
+                    <option value="2">2 - Low</option>
+                    <option value="3" selected>3 - Medium</option>
+                    <option value="4">4 - High</option>
+                    <option value="5">5 - Critical</option>
+                </select>
+            </div>
+            <div class="preview-card" id="previewCard" style="display: none;">
+                <div class="preview-header">
+                    <span class="preview-badge">Top Issue</span>
+                    <span class="preview-severity" id="previewSeverity"></span>
+                </div>
+                <p class="preview-category" id="previewCategory"></p>
+                <p class="preview-example" id="previewExample"></p>
+                <p class="preview-reason" id="previewReason"></p>
             </div>
             <div class="results-list" id="resultsList">
                 <!-- Results will be dynamically inserted here -->
@@ -62,6 +82,6 @@
         </div>
     </div>
 
-    <script src="popup.js"></script>
+    <script type="module" src="popup.js"></script>
 </body>
 </html>

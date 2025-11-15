@@ -124,6 +124,14 @@ body {
     color: #212121;
 }
 
+.sus-score {
+    font-size: 13px;
+    font-weight: 600;
+    color: #E53935;
+    margin-left: auto;
+    margin-right: 12px;
+}
+
 .close-results {
     font-size: 28px;
     color: #757575;
@@ -159,6 +167,79 @@ body {
     font-size: 14px;
     color: #424242;
     font-weight: 500;
+}
+
+.filter-bar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 16px;
+}
+
+.filter-bar label {
+    font-size: 13px;
+    color: #616161;
+    font-weight: 600;
+}
+
+.filter-bar select {
+    flex: 1;
+    padding: 6px 8px;
+    border: 1px solid #E0E0E0;
+    border-radius: 4px;
+    font-size: 13px;
+    color: #424242;
+    background: #fff;
+}
+
+.preview-card {
+    border: 1px solid #E0E0E0;
+    border-radius: 6px;
+    padding: 16px;
+    margin-bottom: 20px;
+    background: #FFFFFF;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04);
+}
+
+.preview-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+.preview-badge {
+    font-size: 11px;
+    font-weight: 600;
+    color: #B71C1C;
+    background: #FFEBEE;
+    padding: 4px 8px;
+    border-radius: 999px;
+    text-transform: uppercase;
+}
+
+.preview-severity {
+    font-size: 12px;
+    font-weight: 600;
+    color: #E53935;
+}
+
+.preview-category {
+    font-size: 13px;
+    font-weight: 600;
+    color: #212121;
+    margin-bottom: 6px;
+}
+
+.preview-example {
+    font-size: 13px;
+    color: #424242;
+    margin-bottom: 6px;
+}
+
+.preview-reason {
+    font-size: 12px;
+    color: #616161;
 }
 
 .results-list {
